@@ -1,12 +1,15 @@
 import cv2
 import numpy as np
+import argparse
+import os
 
-def detect_board_lines(image_path):
+def detect_board_lines(image_path, output_path):
     """
     Detects and draws the lines of a chessboard on an image by detecting edges.
 
     Args:
         image_path (str): The path to the chessboard image.
+        output_path (str): The path to save the output image.
 
     Returns:
         str: The path to the output image with the detected lines.
@@ -36,14 +39,23 @@ def detect_board_lines(image_path):
                 if 0.8 < aspect_ratio < 1.2:
                     filtered_contours.append(contour)
 
-        # Draw the contours on the image
-        cv2.drawContours(img, filtered_contours, -1, (0, 0, 255), 3)
+        if filtered_contours:
+            # Find the contour with the largest area
+            largest_contour = max(filtered_contours, key=cv2.contourArea)
 
-        # Save the output image
-        output_path = "board_lines.jpg"
-        cv2.imwrite(output_path, img)
+            # Get the bounding rectangle of the largest contour
+            x, y, w, h = cv2.boundingRect(largest_contour)
 
-        return output_path
+            # Crop the image
+            cropped_img = img[y:y+h, x:x+w]
+
+            # Save the cropped image
+            cv2.imwrite(output_path, cropped_img)
+
+            return output_path
+        else:
+            print("No suitable contours found.")
+            return None
 
     except Exception as e:
         print(f"Error: {e}")
@@ -52,10 +64,23 @@ def detect_board_lines(image_path):
         return None
 
 if __name__ == "__main__":
-    image_path = "screenshot.png"  # Replace with your image path
-    output_image_path = detect_board_lines(image_path)
+    parser = argparse.ArgumentParser(description="Detect board lines in images.")
+    parser.add_argument("--input_dir", help="Path to the directory containing the images.", default="test")
+    parser.add_argument("--output_dir", help="Path to the directory to save the output images.", default="test/output")
+    args = parser.parse_args()
 
-    if output_image_path:
-        print(f"Board lines detected and saved to: {output_image_path}")
-    else:
-        print("Failed to detect board lines.")
+    # Create the output directory if it doesn't exist
+    if not os.path.exists(args.output_dir):
+        os.makedirs(args.output_dir)
+
+    image_files = [f for f in os.listdir(args.input_dir) if f.endswith(('.png', '.jpg', '.jpeg'))]
+
+    for i, image_file in enumerate(image_files):
+        image_path = os.path.join(args.input_dir, image_file)
+        output_path = os.path.join(args.output_dir, f"{i+1}.jpg")
+        output_image_path = detect_board_lines(image_path, output_path)
+
+        if output_image_path:
+            print(f"Board lines detected and saved to: {output_image_path}")
+        else:
+            print(f"Failed to detect board lines for {image_file}.")
